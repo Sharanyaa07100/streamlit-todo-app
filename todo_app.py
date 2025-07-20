@@ -1,33 +1,36 @@
 import streamlit as st
 import requests
+from datetime import datetime
 
-# Sheety API URL
+# Google Sheet API URL (Sheety)
 SHEETY_URL = "https://api.sheety.co/4f6df431532083f87864de6d23e2825f/todoApp/sheet1"
 
-st.title("📝 Cloud To-Do List (Google Sheets)")
+st.title("🧠 Cloud To-Do List + Planner")
 
-# Function to get tasks from Google Sheet
+# --------------- Helper Functions ---------------
+
 def get_tasks():
     response = requests.get(SHEETY_URL)
     if response.status_code == 200:
         return response.json()["sheet1"]
     else:
-        st.error("Failed to fetch tasks")
+        st.error("Error fetching tasks")
         return []
 
-# Function to add a new task
-def add_task(task):
+def add_task(task, category, due, priority):
     new_task = {
         "sheet1": {
             "task": task,
-            "done": False
+            "done": False,
+            "category": category,
+            "due": due,
+            "priority": priority
         }
     }
     response = requests.post(SHEETY_URL, json=new_task)
     if response.status_code != 200:
         st.error("Failed to add task")
 
-# Function to update a task's 'done' status
 def update_task(task_id, done):
     update_data = {
         "sheet1": {
@@ -39,35 +42,62 @@ def update_task(task_id, done):
     if response.status_code != 200:
         st.error("Failed to update task")
 
-# Function to clear completed tasks
 def delete_task(task_id):
     url = f"{SHEETY_URL}/{task_id}"
     response = requests.delete(url)
     if response.status_code != 200:
         st.error("Failed to delete task")
 
-# Add new task
-new_task = st.text_input("Add a new task:")
-if st.button("➕ Add Task"):
-    if new_task.strip():
-        add_task(new_task.strip())
-        st.experimental_rerun()
-    else:
-        st.warning("Task cannot be empty!")
+# --------------- UI: Add New Task ---------------
 
-st.subheader("Your Tasks:")
-tasks = get_tasks()
-for task in tasks:
-    col1, col2, col3 = st.columns([0.1, 0.7, 0.2])
+st.subheader("➕ Add a New Task")
+
+with st.form("add_task_form"):
+    col1, col2 = st.columns(2)
     with col1:
-        checked = st.checkbox("", value=task["done"], key=task["id"])
-        if checked != task["done"]:
-            update_task(task["id"], checked)
-            st.experimental_rerun()
+        task = st.text_input("Task")
+        category = st.selectbox("Category", ["Work", "Personal", "Study", "Other"])
     with col2:
-        st.markdown(f"{'✅' if task['done'] else '🔲'} {task['task']}")
-    with col3:
-        if task["done"]:
-            if st.button("🗑️", key=f"delete_{task['id']}"):
-                delete_task(task["id"])
+        due = st.date_input("Due Date", value=datetime.today())
+        priority = st.selectbox("Priority", ["High", "Medium", "Low"])
+
+    submit = st.form_submit_button("Add Task")
+
+    if submit:
+        if task.strip() != "":
+            add_task(task.strip(), category, str(due), priority)
+            st.success("Task added!")
+            st.experimental_rerun()
+        else:
+            st.warning("Task title can't be empty.")
+
+# --------------- UI: Display Tasks ---------------
+
+st.subheader("🗂️ Your Tasks")
+tasks = get_tasks()
+
+if tasks:
+    for task in tasks:
+        col1, col2, col3, col4 = st.columns([0.05, 0.5, 0.3, 0.15])
+        with col1:
+            checked = st.checkbox("", value=task["done"], key=task["id"])
+            if checked != task["done"]:
+                update_task(task["id"], checked)
                 st.experimental_rerun()
+        with col2:
+            st.markdown(
+                f"{'✅' if task['done'] else '🔲'} **{task['task']}**  \n"
+                f"📁 *{task.get('category', 'N/A')}* | 🗓️ *{task.get('due', 'N/A')}*"
+            )
+        with col3:
+            priority = task.get("priority", "Medium")
+            emoji = "🔥" if priority == "High" else ("💧" if priority == "Low" else "⚡")
+            st.markdown(f"**Priority:** {emoji} {priority}")
+        with col4:
+            if task["done"]:
+                if st.button("🗑️", key=f"delete_{task['id']}"):
+                    delete_task(task["id"])
+                    st.experimental_rerun()
+else:
+    st.info("No tasks yet. Start adding some above!")
+
