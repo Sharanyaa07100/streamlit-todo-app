@@ -67,7 +67,7 @@ with st.form("add_task_form"):
         if task.strip() != "":
             add_task(task.strip(), category, str(due), priority)
             st.success("Task added!")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.warning("Task title can't be empty.")
 
@@ -83,7 +83,7 @@ if tasks:
             checked = st.checkbox("", value=task["done"], key=task["id"])
             if checked != task["done"]:
                 update_task(task["id"], checked)
-                st.experimental_rerun()
+                st.rerun()
         with col2:
             st.markdown(
                 f"{'✅' if task['done'] else '🔲'} **{task['task']}**  \n"
@@ -97,7 +97,7 @@ if tasks:
             if task["done"]:
                 if st.button("🗑️", key=f"delete_{task['id']}"):
                     delete_task(task["id"])
-                    st.experimental_rerun()
+                    st.rerun()
 else:
     st.info("No tasks yet. Start adding some above!")
 
